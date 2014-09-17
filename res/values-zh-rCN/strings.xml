@@ -143,7 +143,7 @@
     <string name="preference_resolution">相机分辨率</string>
     <string name="preference_resolution_summary">设定相机拍照分辨率</string>
     <string name="preference_quality">图像质量</string>
-    <string name="preference_quality_summary">设定照片保存时的图像质量（建议值 90%）</string>
+    <string name="preference_quality_summary">设定照片保存时的图像质量（建议值 90%%）</string>
     <string name="preference_location">存储位置信息（地理标签）</string>
     <string name="preference_location_summary">在照片/视频中存储 GPS 位置数据</string>
     <string name="video_quality">视频分辨率</string>
