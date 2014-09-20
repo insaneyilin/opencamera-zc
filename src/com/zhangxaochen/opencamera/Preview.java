@@ -18,7 +18,6 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
 
-
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
@@ -102,6 +101,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 	private boolean video_start_time_set = false;
 	private long video_start_time = 0;
 	private String video_name = null;
+	private boolean has_current_fps_range = false;
 	private int [] current_fps_range = new int[2];
 
 	private final int PHASE_NORMAL = 0;
@@ -681,20 +681,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 		// n.b., don't reset has_set_location, as we can remember the location when switching camera
 		MainActivity main_activity = (MainActivity)this.getContext();
 		main_activity.clearSeekBar();
-		//if( is_taking_photo_on_timer ) {
-		if( this.isOnTimer() ) {
-			takePictureTimerTask.cancel();
-			takePictureTimerTask = null;
-			if( beepTimerTask != null ) {
-				beepTimerTask.cancel();
-				beepTimerTask = null;
-			}
-			/*is_taking_photo_on_timer = false;
-			is_taking_photo = false;*/
-    		this.phase = PHASE_NORMAL;
-			if( MyDebug.LOG )
-				Log.d(TAG, "cancelled camera timer");
-		}
+		cancelTimer();
 		if( camera != null ) {
 			if( video_recorder != null ) {
 				stopVideo(false);
@@ -712,6 +699,24 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 				camera.release();
 				camera = null;
 			}
+		}
+	}
+	
+	void cancelTimer() {
+		if( MyDebug.LOG )
+			Log.d(TAG, "cancelTimer()");
+		if( this.isOnTimer() ) {
+			takePictureTimerTask.cancel();
+			takePictureTimerTask = null;
+			if( beepTimerTask != null ) {
+				beepTimerTask.cancel();
+				beepTimerTask = null;
+			}
+			/*is_taking_photo_on_timer = false;
+			is_taking_photo = false;*/
+    		this.phase = PHASE_NORMAL;
+			if( MyDebug.LOG )
+				Log.d(TAG, "cancelled camera timer");
 		}
 	}
 	
@@ -984,10 +989,20 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 
 	        if( MyDebug.LOG )
 				Log.d(TAG, "get preview fps range");
-			parameters.getPreviewFpsRange(current_fps_range);
-	    	if( MyDebug.LOG ) {
-				Log.d(TAG, "    current fps range: " + current_fps_range[Camera.Parameters.PREVIEW_FPS_MIN_INDEX] + " to " + current_fps_range[Camera.Parameters.PREVIEW_FPS_MAX_INDEX]);
-	    	}
+	        has_current_fps_range = false;
+	        try {
+				parameters.getPreviewFpsRange(current_fps_range);
+		        has_current_fps_range = true;
+		    	if( MyDebug.LOG ) {
+					Log.d(TAG, "    current fps range: " + current_fps_range[Camera.Parameters.PREVIEW_FPS_MIN_INDEX] + " to " + current_fps_range[Camera.Parameters.PREVIEW_FPS_MAX_INDEX]);
+		    	}
+	        }
+	        catch(NumberFormatException e) {
+	        	// needed to trap NumberFormatException reported on "mb526" running SlimKat 4.6, based on Android 4.4.2
+		    	if( MyDebug.LOG )
+					Log.d(TAG, "parameters.getPreviewFpsRange failed!");
+		    	e.printStackTrace();
+	        }
 
 	    	supported_flash_modes = parameters.getSupportedFlashModes(); // Android format
 
@@ -1161,6 +1176,13 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 						iso_key = null; // not supported
 				}
 			}
+
+
+
+
+
+
+
 			if( iso_key != null ) {
 				if( isos == null ) {
 					// set a default for some devices which have an iso_key, but don't give a list of supported ISOs
@@ -1408,6 +1430,14 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 					Log.d(TAG, "focus not supported");
 				supported_focus_values = null;
 			}
+
+
+
+
+
+
+
+
 		    /*View focusModeButton = (View) activity.findViewById(R.id.focus_mode);
 			focusModeButton.setVisibility(supported_focus_values != null ? View.VISIBLE : View.GONE);*/
 		}
@@ -3003,6 +3033,12 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 	private void matchPreviewFpsToVideo() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "matchPreviewFpsToVideo()");
+		if( !has_current_fps_range ) {
+			// exit, as we don't have a current fps to reset back to later
+			if( MyDebug.LOG )
+				Log.d(TAG, "current fps not available");
+			return;
+		}
 		CamcorderProfile profile = getCamcorderProfile();
 		Camera.Parameters parameters = camera.getParameters();
 
@@ -3076,19 +3112,8 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 			showPhotoVideoToast();
 		}
 		else {
-			//if( is_taking_photo_on_timer ) {
 			if( this.isOnTimer() ) {
-				takePictureTimerTask.cancel();
-				takePictureTimerTask = null;
-				if( beepTimerTask != null ) {
-					beepTimerTask.cancel();
-					beepTimerTask = null;
-				}
-				/*is_taking_photo_on_timer = false;
-				is_taking_photo = false;*/
-				this.phase = PHASE_NORMAL;
-				if( MyDebug.LOG )
-					Log.d(TAG, "cancelled camera timer");
+				cancelTimer();
 				this.is_video = true;
 			}
 			//else if( this.is_taking_photo ) {
@@ -3127,7 +3152,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 					this.is_preview_started = false;
 				}
 				setPreviewSize();
-				if( !is_video ) {
+				if( !is_video && has_current_fps_range ) {
 					// if is_video is true, we set the preview fps range in startCameraPreview()
 					if( MyDebug.LOG )
 						Log.d(TAG, "    reset preview to current fps range: " + current_fps_range[Camera.Parameters.PREVIEW_FPS_MIN_INDEX] + " to " + current_fps_range[Camera.Parameters.PREVIEW_FPS_MAX_INDEX]);
@@ -3648,17 +3673,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 		}
 		//if( is_taking_photo_on_timer ) {
 		if( this.isOnTimer() ) {
-			takePictureTimerTask.cancel();
-			takePictureTimerTask = null;
-			if( beepTimerTask != null ) {
-				beepTimerTask.cancel();
-				beepTimerTask = null;
-			}
-			/*is_taking_photo_on_timer = false;
-			is_taking_photo = false;*/
-			this.phase = PHASE_NORMAL;
-			if( MyDebug.LOG )
-				Log.d(TAG, "cancelled camera timer");
+			cancelTimer();
 		    showToast(take_photo_toast, R.string.cancelled_timer);
 			return;
 		}
@@ -5164,19 +5179,19 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
     	return supports_video_stabilization;
     }
 
-    List<String> getSupportedColorEffects() {
+    public List<String> getSupportedColorEffects() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "getSupportedColorEffects");
 		return this.color_effects;
     }
 
-    List<String> getSupportedSceneModes() {
+    public List<String> getSupportedSceneModes() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "getSupportedSceneModes");
 		return this.scene_modes;
     }
 
-    List<String> getSupportedWhiteBalances() {
+    public List<String> getSupportedWhiteBalances() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "getSupportedWhiteBalances");
 		return this.white_balances;
@@ -5188,7 +5203,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
     	return this.iso_key;
     }
     
-    List<String> getSupportedISOs() {
+    public List<String> getSupportedISOs() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "getSupportedISOs");
 		return this.isos;
