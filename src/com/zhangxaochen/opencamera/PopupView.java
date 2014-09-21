@@ -1,4 +1,4 @@
-package net.sourceforge.opencamera;
+package com.zhangxaochen.opencamera;
 
 import java.util.ArrayList;
 import java.util.Arrays;
