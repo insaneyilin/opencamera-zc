@@ -970,6 +970,12 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 				this.max_zoom_factor = parameters.getMaxZoom();
 				try {
 					this.zoom_ratios = parameters.getZoomRatios();
+					List<Integer> tmp = new ArrayList<Integer>();
+					System.out.println("+++++++++++++++"+zoom_ratios.size()+","+max_zoom_factor);
+					for(int x : zoom_ratios)
+						System.out.print(""+x+", ");
+					System.out.println("+++++++++++++++"+zoom_ratios.size());
+					
 				}
 				catch(NumberFormatException e) {
 	        		// crash java.lang.NumberFormatException: Invalid int: " 500" reported in v1.4 on device "es209ra", Android 4.1, 3 Jan 2014
@@ -2478,10 +2484,13 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 				else {
 					p.setTextAlign(Paint.Align.CENTER);
 				}
-				float geo_angle = (float)Math.toDegrees(this.geo_direction[0]);
-				if( geo_angle < 0.0f ) {
-					geo_angle += 360.0f;
-				}
+//				float geo_angle = (float)Math.toDegrees(this.geo_direction[0]);
+//				if( geo_angle < 0.0f ) {
+//					geo_angle += 360.0f;
+//				}
+				float geo_angle = (float)Math.toDegrees(this.geo_direction[1]);
+				if(Math.abs(geo_angle) <= close_angle)
+					color = Color.rgb(20, 231, 21); // Green A400
 				String string = " " + getResources().getString(R.string.direction) + ": " + Math.round(geo_angle) + (char)0x00B0;
 				drawTextWithBackground(canvas, p, string, color, Color.BLACK, canvas.getWidth() / 2, text_base_y, false, ybounds_text);
 			}
@@ -2547,7 +2556,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 				int pixels_offset_y = 2*text_y;
 				p.setTextSize(14 * scale + 0.5f); // convert dps to pixels
 				p.setTextAlign(Paint.Align.CENTER);
-				drawTextWithBackground(canvas, p, getResources().getString(R.string.zoom) + ": " + zoom_ratio +"x", Color.WHITE, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y, false, ybounds_text);
+				drawTextWithBackground(canvas, p, getResources().getString(R.string.zoom) + ": LV " + zoom_factor + ", " + zoom_ratio +"x", Color.WHITE, Color.BLACK, canvas.getWidth() / 2, text_base_y - pixels_offset_y, false, ybounds_text);
 			}
 		}
 		if( camera != null && sharedPreferences.getBoolean("preference_free_memory", true) ) {
@@ -5152,6 +5161,11 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
     }
     
     private void calculateGeoDirection() {
+//		System.out.println("---------------");
+//		for (float x : gravity)
+//			System.out.print("," + x);
+//		System.out.println();
+
     	if( !this.has_gravity || !this.has_geomagnetic ) {
     		return;
     	}
@@ -5159,6 +5173,18 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
     		return;
     	}
         SensorManager.remapCoordinateSystem(this.deviceRotation, SensorManager.AXIS_X, SensorManager.AXIS_Z, this.cameraRotation);
+//        System.out.println("---------------");
+//        for(float x:deviceRotation)
+//        	System.out.print(","+x);
+//        System.out.println("+++++++++++++++");
+//        for(float x:cameraRotation)
+//        	System.out.print(","+x);
+		
+//        System.out.println("+++++++++++++++");
+//		for (float x : gravity)
+//			System.out.print("," + x);
+//		System.out.println();
+        
     	this.has_geo_direction = true;
     	SensorManager.getOrientation(cameraRotation, geo_direction);
     	//SensorManager.getOrientation(deviceRotation, geo_direction);

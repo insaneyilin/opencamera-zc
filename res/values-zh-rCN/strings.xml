@@ -102,7 +102,7 @@
     <string name="preference_shutter_sound_summary">拍照时播放快门音（若要禁用，需要系统为 Android 4.2 及以上）</string>
     <string name="preference_volume_keys">音量键</string>
     <string name="preference_volume_keys_summary">设置按下音量键时的操作</string>
-    <string name="preference_save_location">保存地理位置信息</string>
+    <string name="preference_save_location">保存位置设置</string>
     <string name="preference_save_location_summary">用于存放照片/视频文件的目录</string>
     <string name="preference_show_when_locked">锁屏时显示相机</string>
     <string name="preference_show_when_locked_summary">若启用，相机会显示在任何锁屏界面之上（您仍需解锁以访问设置项、照片库等等）</string>

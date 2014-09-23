@@ -1893,10 +1893,13 @@ public class MainActivity extends Activity {
     private void longClickedGallery() {
 		if( MyDebug.LOG )
 			Log.d(TAG, "longClickedGallery");
-		if( save_location_history.size() <= 1 ) {
+		if( save_location_history.size() <= 0 ) {
+			if( MyDebug.LOG )
+				Log.d(TAG, "save_location_history.size() <= 1,,,,"+save_location_history.size());
 			return;
 		}
 		final int theme = android.R.style.Theme_Black_NoTitleBar_Fullscreen;
+		//final int theme = android.R.style.Theme_Black;
         AlertDialog.Builder alertDialog = new AlertDialog.Builder(this, theme);
         alertDialog.setTitle(R.string.choose_save_location);
         CharSequence [] items = new CharSequence[save_location_history.size()+1];
