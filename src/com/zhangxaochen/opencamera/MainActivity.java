@@ -10,6 +10,9 @@ import java.util.Hashtable;
 import java.util.List;
 import java.util.Map;
 
+import com.example.mysensorlistener.Consts;
+import com.example.mysensorlistener.MySensorListener;
+
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
@@ -106,6 +109,15 @@ public class MainActivity extends Activity {
     private ToastBoxer screen_locked_toast = new ToastBoxer();
     ToastBoxer changed_auto_stabilise_toast = new ToastBoxer();
     
+    //zhangxaochen:
+    private boolean is_sensor_split = false;
+    private boolean is_sensor_on = false;
+    //{照片名, 时间戳} pair
+	private List<String> picNames = new ArrayList<String>();
+	private List<Double> picTimestamps = new ArrayList<Double>();
+    MySensorListener _listener = new MySensorListener();
+
+	
 	// for testing:
 	public boolean is_test = false;
 	public Bitmap gallery_bitmap = null;
@@ -448,6 +460,10 @@ public class MainActivity extends Activity {
 		updateGalleryIcon(); // update in case images deleted whilst idle
 
 		preview.onResume();
+		
+		//zhangxaochen:
+		_listener.reset();
+		_listener.registerWithSensorManager(mSensorManager, Consts.aMillion / 30);
 
     }
 
@@ -467,6 +483,9 @@ public class MainActivity extends Activity {
 		// reset location, as may be out of date when resumed - the location listener is reinitialised when resuming
         preview.resetLocation();
 		preview.onPause();
+		
+		//zhangxaochen:
+		_listener.unregisterWithSensorManager(mSensorManager);
     }
 
     public void layoutUI() {
@@ -586,6 +605,36 @@ public class MainActivity extends Activity {
 			layoutParams.addRule(right_of, 0);
 			view.setLayoutParams(layoutParams);
 			view.setRotation(ui_rotation);
+			
+			//zhangxaochen:
+			view = findViewById(R.id.choose_proj_path);
+			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
+			layoutParams.addRule(align_parent_top, RelativeLayout.TRUE);
+			layoutParams.addRule(align_parent_bottom, 0);
+			layoutParams.addRule(left_of, R.id.switch_camera);
+			layoutParams.addRule(right_of, 0);
+			view.setLayoutParams(layoutParams);
+			view.setRotation(ui_rotation);
+			
+			view = findViewById(R.id.switch_sensor_split);
+			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
+			layoutParams.addRule(align_parent_top, RelativeLayout.TRUE);
+			layoutParams.addRule(align_parent_bottom, 0);
+			layoutParams.addRule(left_of, R.id.choose_proj_path);
+			layoutParams.addRule(right_of, 0);
+			view.setLayoutParams(layoutParams);
+			view.setRotation(ui_rotation);
+			
+			view = findViewById(R.id.sensor_start);
+			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
+			layoutParams.addRule(align_parent_top, RelativeLayout.TRUE);
+			layoutParams.addRule(align_parent_bottom, 0);
+			layoutParams.addRule(left_of, R.id.switch_sensor_split);
+			layoutParams.addRule(right_of, 0);
+			view.setLayoutParams(layoutParams);
+			view.setRotation(ui_rotation);
+			
+			//------------------------------
 	
 			view = findViewById(R.id.trash);
 			layoutParams = (RelativeLayout.LayoutParams)view.getLayoutParams();
@@ -771,6 +820,49 @@ public class MainActivity extends Activity {
 		this.preview.switchCamera();
     }
 
+    //zhangxaochen:
+    public void clickedSwitchSensorSplit(View view){
+		if( MyDebug.LOG )
+			Log.d(TAG, "clickedSwitchSensorSplit");
+		
+		//切换 "分/合" 图标:
+		this.is_sensor_split = !this.is_sensor_split;
+		ImageButton btnSensorSplit = (ImageButton)findViewById(R.id.switch_sensor_split);
+		btnSensorSplit.setImageResource(this.is_sensor_split ? R.drawable.sensor_fen
+				: R.drawable.sensor_he);
+	
+		//"分" 时, 单独显示一个 "sensor_on/off" 图标, 用于控制采集：
+		ImageButton btnSensorStart = (ImageButton)findViewById(R.id.sensor_start);
+		btnSensorStart.setVisibility(is_sensor_split ? View.VISIBLE : View.GONE);
+		
+    }//clickedSwitchCamera
+    
+    public void clickedSensorStart(View view){
+		if( MyDebug.LOG )
+			Log.d(TAG, "clickedSensorStart");
+   	
+		//TODO:
+		this.is_sensor_on = !this.is_sensor_on;
+		ImageButton btnSensorStart = (ImageButton)findViewById(R.id.sensor_start);
+		btnSensorStart.setImageResource(this.is_sensor_on ? R.drawable.sensor_on
+				: R.drawable.sensor_off);
+		//此时 "分合" 禁用:
+		ImageButton btnSensorSplit = (ImageButton)findViewById(R.id.switch_sensor_split);
+		//btnSensorSplit.setClickable(!is_sensor_on);
+		btnSensorSplit.setEnabled(!is_sensor_on);
+		
+		
+    }//clickedSensorStart
+    
+    public void clickedChooseProjPath(View view){
+		if( MyDebug.LOG )
+			Log.d(TAG, "clickedChooseProjPath");
+   	
+		//TODO:
+		FolderChooserDialog fragment = new FolderChooserDialog();
+		fragment.show(getFragmentManager(), "FOLDER_FRAGMENT");
+    }//clickedChooseProjPath
+    
     public void clickedSwitchVideo(View view) {
 		if( MyDebug.LOG )
 			Log.d(TAG, "clickedSwitchVideo");
@@ -1714,7 +1806,7 @@ public class MainActivity extends Activity {
     public static final int MEDIA_TYPE_IMAGE = 1;
     public static final int MEDIA_TYPE_VIDEO = 2;
 
-    private String getSaveLocation() {
+    public String getSaveLocation() {
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 		String folder_name = sharedPreferences.getString("preference_save_location", "OpenCamera");
 		return folder_name;

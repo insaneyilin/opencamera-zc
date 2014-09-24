@@ -18,6 +18,9 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
 
+import com.example.mysensorlistener.Consts;
+import com.zhangxaochen.sensordataxml.NewSessionNode;
+
 import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
@@ -50,6 +53,7 @@ import android.net.Uri;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.CountDownTimer;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.provider.MediaStore;
@@ -4183,6 +4187,8 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 
 	@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR1)
 	private void takePictureWhenFocused() {
+		MainActivity main_activity = (MainActivity)Preview.this.getContext();
+		System.out.println("---------------~~~"+main_activity.getSaveLocation());
 		// should be called when auto-focused
 		if( MyDebug.LOG )
 			Log.d(TAG, "takePictureWhenFocused");
@@ -4224,7 +4230,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 		if( MyDebug.LOG )
 			Log.d(TAG, "remaining_burst_photos: " + remaining_burst_photos);
 
-    	Camera.ShutterCallback shutterCallback = new Camera.ShutterCallback() {
+    	final Camera.ShutterCallback shutterCallback = new Camera.ShutterCallback() {
     		// don't do anything here, but we need to implement the callback to get the shutter sound (at least on Galaxy Nexus and Nexus 7)
             public void onShutter() {
     			if( MyDebug.LOG )
@@ -4232,7 +4238,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
             }
         };
 
-        Camera.PictureCallback jpegPictureCallback = new Camera.PictureCallback() {
+        final Camera.PictureCallback jpegPictureCallback = new Camera.PictureCallback() {
     	    public void onPictureTaken(byte[] data, Camera cam) {
     	    	// n.b., this is automatically run in a different thread
 	            System.gc();
@@ -4404,6 +4410,11 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 	    			if( image_capture_intent ) {
 	        			if( image_capture_intent_uri != null )
 	        			{
+	        				
+	        				//zhangxaochen:
+		        			if( MyDebug.LOG )
+		        				Log.d(TAG, "image_capture_intent_uri: "+image_capture_intent_uri);
+
 	        			    // Save the bitmap to the specified URI (use a try/catch block)
 	        			    outputStream = main_activity.getContentResolver().openOutputStream(image_capture_intent_uri);
 	        			}
@@ -4771,7 +4782,96 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
     		if( MyDebug.LOG )
     			Log.d(TAG, toast_text);*/
     		try {
-    			camera.takePicture(shutterCallback, null, jpegPictureCallback);
+    		    /**
+    		     * 采集传感器数据，并且在相隔delay_time之后采集照片数据
+    		     */
+    		    class capture_sensor_and_picture_t extends CountDownTimer {
+    		        /**
+    		         * 存在bug在sumsung手机上，如果设置时间为(2*interval, interval)，那么
+    		         * 第一下的onTick将在Timer启动时候调用，而不是在interval时候调用。
+    		         *
+    		         * 用了比较naive的方法来解决，设置总时间为3个时间间隔，在第二个onTick调用时候，拍摄照片
+    		         */
+    		    	public capture_sensor_and_picture_t(long delay_time) {
+    		    		super(3*delay_time, delay_time);
+    		    	}
+    		    	private int cnt = 0;
+
+    		    	/* 为了和之前设计兼容，使用List来存放其实只有一张照片的数据信息 */
+    		    	private List<String> picNames = new ArrayList<String>();
+    		    	private List<Double> picTimestamps = new ArrayList<Double>();
+    		    	NewSessionNode newSessionNode = new NewSessionNode();
+    		    	MainActivity mainActivity = (MainActivity) Preview.this.getContext();
+    		    	
+    		    	@Override
+    		    	public void onTick(long millisUntilFinished) {
+    		    		System.out.println("onTick, millisUntilFinished, cnt: " + millisUntilFinished + ", " + cnt);
+
+						if (cnt==0){
+    		    			double beginTime=System.currentTimeMillis() * Consts.MS2S;
+    		    			newSessionNode.setBeginTime(beginTime);
+    		    			mainActivity._listener.set_baseTimestamp(beginTime/Consts.MS2S);
+    		                System.out.println("setBeginTime: " + beginTime);
+    		    		}
+    		    		/* 第二次tick的时候拍照 */
+    		    		else if(cnt == 1) {
+    		    			// 照片名称
+//    		    			int picCnt = getPicCnt();
+//    		    			String picName = picNamePrefix + "_" + picCnt + picExt;
+
+    		    			// 记录拍照epoch 时间
+    		    			Double epochTime = System.currentTimeMillis() * Consts.MS2S;
+//    		    			picTimestamps.add(epochTime);
+//    		    			picNames.add(picName);
+//
+//    		    			// 获取传感器名称
+//    		    			dataXmlName = dataXmlPrefix + "_" + picCnt + dataXmlExt;
+//
+//    		    			/* 加入一次新的collection节点 */
+//    		    			CollectionNode cNode = new CollectionNode();
+//    		    			cNode.setSensorName(dataXmlName);
+//    		    			cNode.addPicNodes(picNames, picTimestamps);
+//    		    			_projConfigXmlNode.getCollectionsNode().collectionList.add(cNode);
+//
+//    		    			/* 写入新的collection到xml文件中 */
+//    		    			try {
+//    		    				_persister.write(_projConfigXmlNode, new File(_projFolder, projXmlName));
+//    		    			} catch(Exception e) {
+//    		    				e.printStackTrace();
+//    		    			}
+
+    		    			camera.takePicture(shutterCallback, null, jpegPictureCallback);
+    		    		}
+
+    		    		cnt++;
+    		    	}//onTick
+
+    		    	@Override
+    		    	public void onFinish() {
+    		    		/* 结束sensor数据采集 */
+    		    		newSessionNode.setEndTime(System.currentTimeMillis() * Consts.MS2S);
+    		    		newSessionNode.addNode(mainActivity._listener.getSensorData());
+
+//    		    		_dataXmlFile = new File(_projFolder, dataXmlName);
+//
+//    		    		WriteXmlTask task = new WriteXmlTask() {
+//    		    			@Override
+//    		    			protected void onPostExecute(Void result) {
+//    		    				super.onPostExecute(result);
+//    		    				saveXmlFinished = true;
+//    		    				enableCaptureButton();
+//    		    			}//onPostExecute
+//    		    		};
+//
+//    		    		/* 异步写入传感器数据 */
+//    		    		task.setXmlRootNode(_newSessionNode)
+//    		    		.setFile(_dataXmlFile)
+//    		    		.setPersister(_persister)
+//    		    		.execute();
+    		    	} // onFinish
+    		    }
+
+    			//camera.takePicture(shutterCallback, null, jpegPictureCallback);
         		count_cameraTakePicture++;
     			//showToast(take_photo_toast, toast_text);
     		}
@@ -4788,7 +4888,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
     	}
 		if( MyDebug.LOG )
 			Log.d(TAG, "takePicture exit");
-    }
+    }//takePictureWhenFocused
 
 	private void setGPSDirectionExif(ExifInterface exif) {
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this.getContext());
@@ -4806,7 +4906,7 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 		   	exif.setAttribute(TAG_GPS_IMG_DIRECTION, GPSImgDirection_string);
 		   	exif.setAttribute(TAG_GPS_IMG_DIRECTION_REF, "M");
     	}
-	}
+	}//setGPSDirectionExif
 
 	void clickedShare() {
 		if( MyDebug.LOG )

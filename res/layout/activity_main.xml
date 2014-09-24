@@ -120,6 +120,39 @@
         android:onClick="clickedSwitchCamera"
         />
 
+	<!-- added by zhangxaochen: -->
+	
+    <ImageButton
+        android:id="@+id/choose_proj_path"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/proj_path"
+        android:onClick="clickedChooseProjPath" 
+        />
+    
+    <ImageButton
+        android:id="@+id/switch_sensor_split"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/sensor_he"
+        android:onClick="clickedSwitchSensorSplit" 
+        />
+    
+    <ImageButton
+        android:id="@+id/sensor_start"
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:padding="10dp"
+        android:scaleType="fitCenter"
+        android:src="@drawable/sensor_off"
+        android:onClick="clickedSensorStart" 
+        android:visibility="gone"
+        />
+
     <!-- should be at left-most -->
     <ImageButton
         android:id="@+id/trash"
