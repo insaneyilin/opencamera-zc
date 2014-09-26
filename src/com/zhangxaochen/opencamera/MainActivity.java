@@ -12,6 +12,7 @@ import java.util.Map;
 
 import com.example.mysensorlistener.Consts;
 import com.example.mysensorlistener.MySensorListener;
+import com.zhangxaochen.sensordataxml.NewSessionNode;
 
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
@@ -110,13 +111,16 @@ public class MainActivity extends Activity {
     ToastBoxer changed_auto_stabilise_toast = new ToastBoxer();
     
     //zhangxaochen:
-    private boolean is_sensor_split = false;
-    private boolean is_sensor_on = false;
+    boolean _isSensorSplit = false;
+    boolean _isSensorOn = false;
+    boolean _saveDataXmlFinished = false;
+    boolean _savePicFinished = false;
+    
     //{照片名, 时间戳} pair
-	private List<String> picNames = new ArrayList<String>();
-	private List<Double> picTimestamps = new ArrayList<Double>();
+	List<String> _picNames = new ArrayList<String>();
+	List<Double> _picTimestamps = new ArrayList<Double>();
     MySensorListener _listener = new MySensorListener();
-
+    NewSessionNode _newSessionNode = new NewSessionNode();
 	
 	// for testing:
 	public boolean is_test = false;
@@ -826,32 +830,40 @@ public class MainActivity extends Activity {
 			Log.d(TAG, "clickedSwitchSensorSplit");
 		
 		//切换 "分/合" 图标:
-		this.is_sensor_split = !this.is_sensor_split;
+		this._isSensorSplit = !this._isSensorSplit;
 		ImageButton btnSensorSplit = (ImageButton)findViewById(R.id.switch_sensor_split);
-		btnSensorSplit.setImageResource(this.is_sensor_split ? R.drawable.sensor_fen
+		btnSensorSplit.setImageResource(this._isSensorSplit ? R.drawable.sensor_fen
 				: R.drawable.sensor_he);
 	
 		//"分" 时, 单独显示一个 "sensor_on/off" 图标, 用于控制采集：
 		ImageButton btnSensorStart = (ImageButton)findViewById(R.id.sensor_start);
-		btnSensorStart.setVisibility(is_sensor_split ? View.VISIBLE : View.GONE);
+		btnSensorStart.setVisibility(_isSensorSplit ? View.VISIBLE : View.GONE);
 		
     }//clickedSwitchCamera
     
+    /**
+     * 触摸"△/||"按钮, 回调
+     * @param view
+     */
     public void clickedSensorStart(View view){
 		if( MyDebug.LOG )
 			Log.d(TAG, "clickedSensorStart");
    	
 		//TODO:
-		this.is_sensor_on = !this.is_sensor_on;
+		this._isSensorOn = !this._isSensorOn;
 		ImageButton btnSensorStart = (ImageButton)findViewById(R.id.sensor_start);
-		btnSensorStart.setImageResource(this.is_sensor_on ? R.drawable.sensor_on
+		btnSensorStart.setImageResource(this._isSensorOn ? R.drawable.sensor_on
 				: R.drawable.sensor_off);
 		//此时 "分合" 禁用:
 		ImageButton btnSensorSplit = (ImageButton)findViewById(R.id.switch_sensor_split);
 		//btnSensorSplit.setClickable(!is_sensor_on);
-		btnSensorSplit.setEnabled(!is_sensor_on);
+		btnSensorSplit.setEnabled(!_isSensorOn);
 		
-		
+		if(_isSensorOn)
+			preview.startCaptureSensor(_newSessionNode);
+		else{
+			preview.stopCaptureSensor(_newSessionNode);
+		}
     }//clickedSensorStart
     
     public void clickedChooseProjPath(View view){
