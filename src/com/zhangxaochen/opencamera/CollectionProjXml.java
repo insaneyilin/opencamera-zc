@@ -10,6 +10,8 @@ import org.simpleframework.xml.Root;
 import com.zhangxaochen.sensordataxml.NewSessionNode;
 
 import android.R.id;
+import android.nfc.Tag;
+import android.util.Log;
 
 @Root(name="collection-seq")
 public class CollectionProjXml {
@@ -64,11 +66,15 @@ public class CollectionProjXml {
 }//CollectionProjXml
 
 class CollectionsNode{
+	private static final String TAG = "CollectionsNode";
+	
 	@ElementList(entry="collection", inline=true)
 	List<CollectionNode> collectionList=new ArrayList<CollectionNode>();
 }//CollectionsNode
 
 class CollectionNode{
+	private static final String TAG = "CollectionNode";
+	
 	@Element(name="pic-count")
 	int picCount=0;
 
@@ -115,7 +121,8 @@ class CollectionNode{
 			PicNode picNode=new PicNode();
 			picNode.picName=picNames.get(i);
 			picNode.timeStamp=timeStamps.get(i);
-			System.out.println("picNode.picName, picNode.timeStamp"+picNode.picName+","+picNode.timeStamp);
+//			System.out.println("picNode.picName, picNode.timeStamp"+picNode.picName+","+picNode.timeStamp);
+			Log.i(TAG, "picNode.picName, picNode.timeStamp"+picNode.picName+","+picNode.timeStamp);
 			
 			picsNode.picList.add(picNode);
 		}

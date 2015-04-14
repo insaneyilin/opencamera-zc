@@ -28,6 +28,7 @@ import com.zhangxaochen.sensordataxml.XmlRootNode;
 
 import android.annotation.TargetApi;
 import android.app.Activity;
+import android.app.AlertDialog.Builder;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -263,6 +264,8 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 	final String _dataXmlPrefix = "sensor";
 	final String _dataXmlExt = "xml";
 
+	//2015-4-14 23:02:36
+	boolean _captureStarted = false;
 	
 	Preview(Context context) {
 		this(context, null);
@@ -4155,10 +4158,13 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 					this.reconnectCamera(true);
 				}
 	        	
-	        	String videoFname = videoFile.getName();
-	        	_mainActivity._picNames.add(videoFname);
-    			Double epochTime = System.currentTimeMillis() * Consts.MS2S;
-    			_mainActivity._picTimestamps.add(epochTime);
+	        	//2015-4-14 23:06:12， 先按了IMU开始按钮，才允许记录 videoFname
+	        	if(_captureStarted){
+					String videoFname = videoFile.getName();
+					_mainActivity._picNames.add(videoFname);
+					Double epochTime = System.currentTimeMillis() * Consts.MS2S;
+					_mainActivity._picTimestamps.add(epochTime);
+				}
 
 			}
         	return;
@@ -5789,6 +5795,8 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
 
     //zhangxaochen:
     void startCaptureSensor(NewSessionNode nsNode){
+    	//2015-4-14 23:03:51： 加这个 _captureStarted flag， 防止先点录像按钮，导致 conf xml 文件中多记录了video文件名：
+    	_captureStarted = true;
 		double beginTime=System.currentTimeMillis() * Consts.MS2S;
 		nsNode.setBeginTime(beginTime);
 		_mainActivity._listener.set_baseTimestamp(beginTime/Consts.MS2S);
@@ -5796,44 +5804,69 @@ public class Preview extends SurfaceView implements SurfaceHolder.Callback {
         System.out.println("setBeginTime: " + beginTime);
     }//startCaptureSensor
     
-    void stopCaptureSensor(NewSessionNode nsNode){
+    void stopCaptureSensor(NewSessionNode nsNode) {
 		/* 结束sensor数据采集 */
+    	//2015-4-14 23:05:03
+    	_captureStarted = false;
 		nsNode.setEndTime(System.currentTimeMillis() * Consts.MS2S);
 		nsNode.addNode(_mainActivity._listener.getSensorData());
+		System.out.println("+++++++++++++++1");
 		
-		String dataFolderName = _mainActivity.getSaveLocation();
-		File projFolder = new File(dataFolderName);
-		//计数： 当前目录有多少 sensor_xxx.xml?
-		int cntDataXml = projFolder.list(new FilenameFilter() {
-			@Override
-			public boolean accept(File dir, String filename) {
-				return filename.contains(_dataXmlPrefix) && filename.endsWith(_dataXmlExt);
+		try {
+			String dataFolderName = _mainActivity.getSaveLocation();
+			File projFolder = new File(dataFolderName);
+			System.out.println("projFolder: "+projFolder+", "+projFolder.isDirectory()+", "+dataFolderName);
+			if(!projFolder.isDirectory() && !dataFolderName.contains("/")){ //最可能“OpenCamera”
+				_mainActivity._listener.reset();
+				Builder builder = new Builder(this.getContext());
+				builder
+				.setTitle("保存位置错误")
+				.setMessage("请在'OpenCamera'目录下新建子工程目录，以免不同次采集的数据混杂")
+				.setNegativeButton("放弃本次", null);
+				builder.show();
+				
+				return;
 			}
-		}).length;
-		String dataXmlName = _dataXmlPrefix + "_" + cntDataXml + "." + _dataXmlExt;
-		File dataXmlFile = new File(projFolder, dataXmlName);
-		
-		//--------------- 传感器数据 异步存文件
-		WriteDataXmlTask dataXmlTask = new WriteDataXmlTask() {
-			@Override
-			protected void onPostExecute(Void result) {
-				super.onPostExecute(result);
-				_mainActivity._saveDataXmlFinished = true;
+			//计数： 当前目录有多少 sensor_xxx.xml?
+			int cntDataXml = projFolder.list(new FilenameFilter() {
+				@Override
+				public boolean accept(File dir, String filename) {
+					return filename.contains(_dataXmlPrefix) && filename.endsWith(_dataXmlExt);
+				}
+			}).length;
+			String dataXmlName = _dataXmlPrefix + "_" + cntDataXml + "." + _dataXmlExt;
+			File dataXmlFile = new File(projFolder, dataXmlName);
+			System.out.println("+++++++++++++++2");
+
+			//--------------- 传感器数据 异步存文件
+			WriteDataXmlTask dataXmlTask = new WriteDataXmlTask() {
+				@Override
+				protected void onPostExecute(Void result) {
+					super.onPostExecute(result);
+					_mainActivity._saveDataXmlFinished = true;
 //				enableCaptureButton();
-			}//onPostExecute
-		};
-		dataXmlTask.setXmlRootNode(nsNode)
-		.setFile(dataXmlFile)
-		.setPersister(_persister)
-		.execute();
-		
-		//---------------异步写配置文件
-		WriteConfXmlTask confXmlTask = new WriteConfXmlTask(
-				_mainActivity, _persister, 
-				new File(_mainActivity.getSaveLocation(), _projXmlName),
-				dataXmlName);
-		confXmlTask.execute();
-		
+				}//onPostExecute
+			};
+			dataXmlTask.setXmlRootNode(nsNode)
+			.setFile(dataXmlFile)
+			.setPersister(_persister)
+			.execute();
+			
+			Toast.makeText(_mainActivity, "picNames, etc"+_mainActivity._picNames.size()+", "+_mainActivity._picTimestamps.size(), Toast.LENGTH_SHORT).show();
+			Log.i(TAG, "---------------"+_mainActivity.getSaveLocation()+", "+_projXmlName+", "+dataXmlName);
+			
+			//---------------异步写配置文件
+			WriteConfXmlTask confXmlTask = new WriteConfXmlTask(
+					_mainActivity, _persister, 
+					new File(_mainActivity.getSaveLocation(), _projXmlName),
+					dataXmlName);
+			confXmlTask.execute();
+			System.out.println("+++++++++++++++3");
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+
 		// _listener 不 unregister， 但是 reset 以禁止存数据到内存
 		_mainActivity._listener.reset();    	
     }//stopCaptureSensor
@@ -5896,6 +5929,7 @@ class WriteDataXmlTask extends AsyncTask<Void, Void, Void> {
 }//WriteDataXmlTask
 
 class WriteConfXmlTask extends AsyncTask<Void, Void, Void>{
+	private static final String TAG = "WriteConfXmlTask";
 //	private String a;
 	MainActivity _mainActivity = null;
 	Persister _persister = null;
@@ -5932,14 +5966,24 @@ class WriteConfXmlTask extends AsyncTask<Void, Void, Void>{
         
 		try {
 			// 如果先前创建过此工程， 读旧的：
-			if (_confFile.exists())
-				confXmlNode = _persister.read(CollectionProjXml.class,
-						_confFile);
+			if (_confFile.exists()){
+				try {
+					confXmlNode = _persister.read(CollectionProjXml.class,
+							_confFile);
+				} catch (Exception e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				
+			}
 			String projName = _confFile.getName();
 			confXmlNode.setProjName(projName);
 			confXmlNode.setProjDescription("deprecated entry");
 			confXmlNode.collectionCntPlusOne();
-
+			Log.i(TAG,
+					"projName: " + projName + "," + confXmlNode.getProjName()
+							+ "," + confXmlNode.getCollectionCnt() + ","
+							+ _mainActivity._picNames.size());
 			CollectionNode cNode = new CollectionNode();
 			cNode.setSensorName(_dataXmlFname);
 			cNode.addPicNodes(_mainActivity._picNames,

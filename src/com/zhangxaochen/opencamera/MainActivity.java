@@ -43,6 +43,8 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
+import android.app.Dialog;
+import android.app.AlertDialog.Builder;
 import android.content.ActivityNotFoundException;
 import android.content.ContentResolver;
 import android.content.ContentUris;
@@ -50,9 +52,12 @@ import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.DialogInterface.OnClickListener;
 import android.content.pm.ActivityInfo;
 import android.content.res.Configuration;
 import android.database.Cursor;
+import android.telephony.TelephonyManager;
+import android.telephony.gsm.GsmCellLocation;
 import android.util.Log;
 
 import android.view.GestureDetector;
@@ -122,6 +127,10 @@ public class MainActivity extends Activity {
     MySensorListener _listener = new MySensorListener();
     NewSessionNode _newSessionNode = new NewSessionNode();
 	
+    //2015-4-13 21:33:27， 采集 IMU数据变为增加采集 BSSS 数据
+	TelephonyManager _tManager;
+
+    
 	// for testing:
 	public boolean is_test = false;
 	public Bitmap gallery_bitmap = null;
@@ -222,7 +231,7 @@ public class MainActivity extends Activity {
         galleryButton.setOnLongClickListener(new View.OnLongClickListener() {
 			@Override
 			public boolean onLongClick(View v) {
-				//preview.showToast(null, "Long click");
+				preview.showToast(null, "Long click");
 				longClickedGallery();
 				return true;
 			}
@@ -246,6 +255,35 @@ public class MainActivity extends Activity {
 
         preloadIcons(R.array.flash_icons);
         preloadIcons(R.array.focus_mode_icons);
+
+        //2015-4-13 22:39:21， zhangxaochen
+        _tManager = (TelephonyManager) this.getSystemService(Context.TELEPHONY_SERVICE);
+        boolean hasIccCard = _tManager.hasIccCard();
+		System.out.println("_tManager.hasIccCard(): "+ hasIccCard);
+		if(hasIccCard){
+			_listener.setTelephonyManager(_tManager);
+			
+			System.out.println("---------------_tManager: "+_tManager);
+			GsmCellLocation location = (GsmCellLocation) _tManager.getCellLocation();
+			System.out.println("---------------location: "+location);
+			int cid = location.getCid();
+			System.out.println("---------------cid: "+cid);
+		}
+		else {
+			Builder builder = new Builder(this);
+			builder
+			.setTitle("未插入SIM卡")
+			.setMessage("hasIccCard==false, 点击“继续”以采集IMU数据；点击“退出”退出程序。")
+			.setPositiveButton("继续", null)
+			.setNegativeButton("退出", new OnClickListener() {
+				@Override
+				public void onClick(DialogInterface dialog, int which) {
+					System.exit(-1);
+				}
+			});
+			Dialog noIccCardDlg = builder.create();
+			noIccCardDlg.show();
+		}
 
 		if( MyDebug.LOG )
 			Log.d(TAG, "time for Activity startup: " + (System.currentTimeMillis() - time_s));
@@ -467,7 +505,9 @@ public class MainActivity extends Activity {
 		
 		//zhangxaochen:
 		_listener.reset();
-		_listener.registerWithSensorManager(mSensorManager, Consts.aMillion / 30);
+//		_listener.registerWithSensorManager(mSensorManager, Consts.aMillion / 30);
+		//2015-4-13 21:34:44
+		_listener.registerWithSensorManager(mSensorManager, SensorManager.SENSOR_DELAY_FASTEST);
 
     }
 
@@ -1562,11 +1602,15 @@ public class MainActivity extends Activity {
     }
     
     private void longClickedGallery() {
-		if( MyDebug.LOG )
+		if( MyDebug.LOG ){
 			Log.d(TAG, "longClickedGallery");
+			System.out.println("---------------longClickedGallery, save_location_history.size(): "+save_location_history.size());
+		}
 		if( save_location_history.size() <= 0 ) {
-			if( MyDebug.LOG )
+			if( MyDebug.LOG ){
 				Log.d(TAG, "save_location_history.size() <= 1,,,,"+save_location_history.size());
+				System.out.println("save_location_history.size() <= 1,,,,"+save_location_history.size());
+			}
 			return;
 		}
 		final int theme = android.R.style.Theme_Black_NoTitleBar_Fullscreen;
@@ -1821,6 +1865,7 @@ public class MainActivity extends Activity {
     public String getSaveLocation() {
 		SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
 		String folder_name = sharedPreferences.getString("preference_save_location", "OpenCamera");
+//		System.out.println("getSaveLocation(): "+folder_name);
 		return folder_name;
     }
     
@@ -1919,9 +1964,9 @@ public class MainActivity extends Activity {
 	        long blocks = statFs.getAvailableBlocks();
 	        long size = statFs.getBlockSize();
 	        long free  = (blocks*size) / 1048576;
-			/*if( MyDebug.LOG ) {
-				Log.d(TAG, "freeMemory blocks: " + blocks + " size: " + size + " free: " + free);
-			}*/
+//			if( MyDebug.LOG ) {
+//				Log.i(TAG, "freeMemory blocks: " + blocks + " size: " + size + " free: " + free);
+//			}
 	        return free;
     	}
     	catch(IllegalArgumentException e) {

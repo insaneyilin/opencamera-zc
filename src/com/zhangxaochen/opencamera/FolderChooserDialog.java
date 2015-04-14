@@ -207,7 +207,7 @@ public class FolderChooserDialog extends DialogFragment {
 
     private boolean useFolder() {
 		if( MyDebug.LOG )
-			Log.d(TAG, "useFolder");
+			Log.i(TAG, "useFolder");
 		if( current_folder == null )
 			return false;
 		if( canWrite() ) {
@@ -215,11 +215,13 @@ public class FolderChooserDialog extends DialogFragment {
         	String new_save_location = current_folder.getAbsolutePath();
         	if( current_folder.getParentFile() != null && current_folder.getParentFile().equals(base_folder) ) {
 				if( MyDebug.LOG )
-					Log.d(TAG, "parent folder is base folder");
+					Log.i(TAG, "parent folder is base folder");
+				//2015-4-14 16:07:57， zhangxaochen： 这里逻辑是如果是 DCIM 下级目录； 估计是为了只显示 OpenCamera 名， 但会造成我 xml 保存路径错误
+				//不懂， 那原程序保存 img 怎么不出错？
 				new_save_location = current_folder.getName();
         	}
 			if( MyDebug.LOG )
-				Log.d(TAG, "new_save_location: " + new_save_location);
+				Log.i(TAG, "new_save_location: " + new_save_location);
 			SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this.getActivity());
 			SharedPreferences.Editor editor = sharedPreferences.edit();
 			editor.putString("preference_save_location", new_save_location);
@@ -234,7 +236,7 @@ public class FolderChooserDialog extends DialogFragment {
     
 	private void newFolder() {
 		if( MyDebug.LOG )
-			Log.d(TAG, "newFolder");
+			Log.i(TAG, "newFolder");
 		if( current_folder == null )
 			return;
 		if( canWrite() ) {
